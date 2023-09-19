@@ -1,7 +1,13 @@
 # Spark Basics - Homework application 
 _Jakub Porebski notes_
 
-### How to run locally the homework application
+### How to run tests
+This is the quickest way to run and test the application. Just open `MainApplicationTest.java` file and run it as a unit test.
+
+![](docs/run_tests.png)
+
+By default, this test will be storing temporary files in a `/tmp/m06sparkbasics` directory. You can change that by providing an `TESTING_DIRECTORY` environment variable.
+### How to run locally 
 
 _note: Instructions for Windows 10_
 
@@ -11,7 +17,7 @@ _note: Instructions for Windows 10_
 * There should be folders: `C:/temp/m06sparkbasics/hotels` and `C:/temp/m06sparkbasics/weather`.
 * This - `C:/temp/m06sparkbasics` - folder will be our working folder, where the app will get the input data and store the results. 
   Path to it will be passed as ENV variable (`HOMEWORK_DATA_DIR`) to a docker container.
-* Directory with input files should look like this: 
+* Directory with input files should look like this:
 ![](./docs/spark_basics(2).png)
 
 #### Running 
@@ -37,7 +43,10 @@ docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -e LATLON_CORRECTOR=
   ![](./docs/spark_basics(7).png)
 * Results are in the folder `C:/temp/m06sparkbasics/joined`. Let's go there and see what it's inside:
   ![](./docs/spark_basics(8).png)
-* As you can see, everything run corretly.
+* As you can see, everything run correctly.
+
+
+
 
 ### How to run in the cloud
 _There should be a docker image created in on of the previous steps._
