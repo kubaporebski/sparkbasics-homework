@@ -1,5 +1,6 @@
 package jporebski.data.sparkbasics;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,19 @@ public class MainApplication {
         if (!Utils.loadAndValidate())
             return;
 
-        try (SparkSession sparkSession = SparkSession.builder().master("local[*]").appName("sparkbasics").getOrCreate()) {
+        log.info("Creating Spark session...");
+
+        try (SparkSession sparkSession = SparkSession.builder()
+                .master("local[*]")
+                .appName("sparkbasics")
+                .config("spark.jars.packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.3")
+                .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
+                .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
+                .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
+                .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", Utils.getKeyFilePath())
+                .getOrCreate()) {
+
+            log.info("Starting data operations...");
 
             Dataset<HotelRow> hotelsDataset = loadHotelsDataset(sparkSession);
             log.info(String.format("Loaded %d HOTEL rows with schema %s", hotelsDataset.count(), hotelsDataset.schema()));
@@ -41,6 +54,7 @@ public class MainApplication {
 
             joinAndSave(hotelsDataset, weatherDataset);
             log.info("Weather data joined with hotel data by Geohash, written to a file.");
+            log.info("All done!");
         }
     }
 

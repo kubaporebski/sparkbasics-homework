@@ -11,6 +11,7 @@ public final class Utils {
     final static Logger log = LoggerFactory.getLogger(Utils.class);
 
     static String dataDirectory;
+    static String gcpKeyPath;
 
     /**
      * Load important information from environment variables and check if it's correct.
@@ -21,6 +22,12 @@ public final class Utils {
         dataDirectory = System.getenv("HOMEWORK_DATA_DIR");
         if (dataDirectory == null) {
             log.error("No environment variable HOMEWORK_DATA_DIR supplied!");
+            return false;
+        }
+
+        gcpKeyPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+        if (gcpKeyPath == null) {
+            log.error("No environment variable GOOGLE_APPLICATION_CREDENTIALS supplied!");
             return false;
         }
 
@@ -62,5 +69,13 @@ public final class Utils {
             // throw the exception forward, because MainApplication has to fail in this situation
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Return a path to the GCP key file.
+     * @return non null string
+     */
+    public static String getKeyFilePath() {
+        return gcpKeyPath;
     }
 }
