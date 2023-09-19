@@ -1,6 +1,5 @@
 package jporebski.data.sparkbasics;
 
-import ch.hsr.geohash.GeoHash;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Row;
 

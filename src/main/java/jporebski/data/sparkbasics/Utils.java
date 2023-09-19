@@ -4,6 +4,8 @@ import ch.hsr.geohash.GeoHash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public final class Utils {
@@ -14,18 +16,25 @@ public final class Utils {
     static String gcpKeyPath;
 
     /**
+     * Configuration map.
+     * Contains copy of environment variables. You can put your own values too if there is no value in the environment.
+     */
+    static Map<String, String> config = new HashMap<>();
+
+
+    /**
      * Load important information from environment variables and check if it's correct.
      * @return true - ok, the app can proceed / false - something is wrong
      */
     public static boolean loadAndValidate() {
 
-        dataDirectory = System.getenv("HOMEWORK_DATA_DIR");
+        dataDirectory = config.computeIfAbsent("HOMEWORK_DATA_DIR", System::getenv);
         if (dataDirectory == null) {
             log.error("No environment variable HOMEWORK_DATA_DIR supplied!");
             return false;
         }
 
-        gcpKeyPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+        gcpKeyPath = config.computeIfAbsent("GOOGLE_APPLICATION_CREDENTIALS", System::getenv);
         if (gcpKeyPath == null) {
             log.error("No environment variable GOOGLE_APPLICATION_CREDENTIALS supplied!");
             return false;
