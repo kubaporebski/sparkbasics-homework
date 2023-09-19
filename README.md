@@ -1,16 +1,65 @@
-# M06_SparkBasics_JVM_GCP
-1) Create your own project on GCP (currently Google offers trial accounts up to 300$).
-2) Install Google Cloud CLI (gcloud & gsutil), Kubernetes controls (kubectl) and spark on your host machine.
-3) Use `gcloud auth login && gcloud auth application-default login && gcloud config set project [PROJECT]` to initialize access to your project.
-4) Run `terraform init && terraform apply`. Provide your project ID and already **existing** bucket for Terraform state. Wait until GCS bucket and cluster are created.
-5) Use `gsutil iam ch serviceAccount:[PROVIDED_SERVICE_ACCOUNT_BUCKET_EMAIL]:objectAdmin gs://[CREATED_BUCKET]` to give to the provided service account RW access to the bucket in your project.
-6) Put key .json file from the provided service account to the service_account_key folder. Optionally you can provide needed dependency through Dockerfile or build a fat JAR.
-7) Set GOOGLE_APPLICATION_CREDENTIALS on your host machine to point to the same key .json file for the provided service account.
-8) Run `gcloud container clusters get-credentials [CLUSTER_NAME] --zone [CLUSTER_ZONE] --project [PROJECT]` to configure kubectl to work with your k8s cluster
-9) Use `kubectl cluster-info` to get k8s master's external IP or use kubernetes_cluster_endpoint from terraform's output.
-10) Use `spark-submit --master k8s://https://[k8s_master_ip] --class [ENTRYPOINT] --deploy-mode cluster --name [APPLICATION_NAME] --conf spark.kubernetes.file.upload.path=gs://[GCS_PATH_FOR_STAGING] --conf spark.kubernetes.container.image=[DOCKER_IMAGE] [JAR_FILE]` to launch the job.  
-    NOTE: Sometimes you might get an access error from k8s cluster if you wait for too long. In that case just use kubectl get pods to refresh your kubectl access token before using spark-submit again.
-11) After the task is done don't forget to `terraform destroy` your GCP resources.  
-  
-NOTE: You might have to use such configuration in your spark code for it to run on GCP:  
-![img.png](img.png)
+# Spark Basics - Homework application 
+_Jakub Porebski notes_
+
+### How to run locally the homework application
+
+_note: Instructions for Windows 10_
+
+#### Preparing data
+* There is a zip file (split into a few files) on the learning platform ready to download. 
+* Unpack it to a directory `c:/temp`, so that files with data will be in `c:/temp/m06sparkbasics`.
+* There should be folders: `C:/temp/m06sparkbasics/hotels` and `C:/temp/m06sparkbasics/weather`.
+* This - `C:/temp/m06sparkbasics` - folder will be our working folder, where the app will get the input data and store the results. 
+  Path to it will be passed as ENV variable (`HOMEWORK_DATA_DIR`) to a docker container.
+* Directory with input files should look like this: 
+![](./docs/spark_basics(2).png)
+
+#### Running 
+* Start a command line app and go into the project directory using `cd` command.
+* Build a maven package: `mvn package -DskipTests=true -DisTestSkip=true`. We're skipping tests, because there is only single test for `OpenCageLatLonCorrector` class.
+  ![](./docs/spark_basics(3).png)
+  If you want to run the test, feel free to do it - you need to add `OPENCAGE_API_KEY` parameter - however it is not necessary to do so.
+* Next, prepare a docker image: `docker build -t jp/sparkbasics .`
+  ![](./docs/spark_basics(4).png)
+* Lastly, run a docker container. Following command won't use OpenCage API.
+```
+docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -v "C:/temp/m06sparkbasics:/homework" -e SPARK_EXECUTOR_MEMORY=16G --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
+``` 
+If you want to get preview what Spark is actually doing at the moment, go to `http://localhost:4040`. You should see something like this:
+![](./docs/spark_basics(5).png)
+And in console it should look like this:
+![](./docs/spark_basics(6).png)
+* Following command will use OpenCage API. Replace `PROVIDE_YOURS` below with your OpenCage API Key.
+```
+docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -e LATLON_CORRECTOR=OpenCageLatLonCorrector -e OPENCAGE_API_KEY=PROVIDE_YOURS -v "C:/temp/m06sparkbasics:/homework" -e SPARK_EXECUTOR_MEMORY=16G --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
+```
+* After computing will be done, console window should look like this:
+  ![](./docs/spark_basics(7).png)
+* Results are in the folder `C:/temp/m06sparkbasics/joined`. Let's go there and see what it's inside:
+  ![](./docs/spark_basics(8).png)
+* As you can see, everything run corretly.
+
+### How to run in the cloud
+_There should be a docker image created in on of the previous steps._
+
+TODO
+
+* Tag and push docker image.
+* Deploy infrastructure with terraform.
+```
+terraform init
+terraform plan -out terraform.plan
+terraform apply terraform.plan
+```
+* Launch Spark app in cluster mode on Kubernetes Cluster
+```
+spark-submit \
+    --master k8s://https://<k8s-apiserver-host>:<k8s-apiserver-port> \
+    --deploy-mode cluster \
+    --name sparkbasics \
+    --conf spark.kubernetes.container.image=<spark-image> \
+    ...
+```
+
+* After everything is done, clean up by running `terraform destroy`.
+* 

@@ -1,50 +1,107 @@
+# Setup azurerm as a state backend
 terraform {
-	backend "gcs" {}
+  backend "azurerm" {
+    resource_group_name  = "my_new_resource_group"
+    storage_account_name = "jakubporebskistorage"
+    container_name       = "sparkbasics-container"
+    key                  = "terraform.tfstate"
+
+    use_azuread_auth     = true
+    subscription_id      = "544c3c79-a656-4738-b7ce-8179bbe0efa4"
+    tenant_id            = "b41b72d0-4e9f-4c26-8a69-f949f367c91d"
+  }
 }
 
-provider "google" {
-	project = var.project
-	region = var.region
-	zone = var.zone
+# Configure the Microsoft Azure Provider
+provider "azurerm" {
+  features {}
 }
 
-provider "random" {}
+data "azurerm_client_config" "current" {}
 
-resource "random_pet" "bucket_name_suffix" {
-	keepers = {
-		project = var.project
-		region = var.region
-		zone = var.zone
-	}
+resource "azurerm_resource_group" "bdcc" {
+  name = "rg-${var.ENV}-${var.LOCATION}"
+  location = var.LOCATION
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    region = var.BDCC_REGION
+    env = var.ENV
+  }
 }
 
-resource "random_pet" "k8s_suffix" {
-	keepers = {
-		project = var.project
-		region = var.region
-		zone = var.zone
-	}
+resource "azurerm_storage_account" "bdcc" {
+  depends_on = [
+    azurerm_resource_group.bdcc]
+
+  name = "st${var.ENV}${var.LOCATION}"
+  resource_group_name = azurerm_resource_group.bdcc.name
+  location = azurerm_resource_group.bdcc.location
+  account_tier = "Standard"
+  account_replication_type = var.STORAGE_ACCOUNT_REPLICATION_TYPE
+  is_hns_enabled = "true"
+
+  network_rules {
+    default_action = "Allow"
+    ip_rules = values(var.IP_RULES)
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    region = var.BDCC_REGION
+    env = var.ENV
+  }
+}
+
+resource "azurerm_storage_data_lake_gen2_filesystem" "gen2_data" {
+  depends_on = [
+    azurerm_storage_account.bdcc]
+
+  name = "data"
+  storage_account_id = azurerm_storage_account.bdcc.id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 
-resource "google_storage_bucket" "storage_bucket" {
-	name = "storage-bucket-${random_pet.bucket_name_suffix.id}"
-	location = var.location
-	force_destroy = false
-	storage_class = "STANDARD"
+resource "azurerm_kubernetes_cluster" "bdcc" {
+  depends_on = [
+    azurerm_resource_group.bdcc]
+
+  name                = "aks-${var.ENV}-${var.LOCATION}"
+  location            = azurerm_resource_group.bdcc.location
+  resource_group_name = azurerm_resource_group.bdcc.name
+  dns_prefix          = "bdcc${var.ENV}"
+
+  default_node_pool {
+    name       = "default"
+    node_count = 1
+    vm_size    = "Standard_D2_v2"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = {
+    region = var.BDCC_REGION
+    env = var.ENV
+  }
 }
 
-resource "google_container_cluster" "kubernetes_cluster" {
-	name = "k8s-cluster-${random_pet.k8s_suffix.id}"
-	location = var.zone
-	initial_node_count = 1
-	node_config {
-		machine_type = "n1-standard-2"
-	}
-	depends_on = [google_project_service.container_service]
+output "client_certificate" {
+  value = azurerm_kubernetes_cluster.bdcc.kube_config.0.client_certificate
 }
 
-resource "google_project_service" "container_service" {
-	service = "container.googleapis.com"
-	disable_dependent_services = true
+output "kube_config" {
+  sensitive = true
+  value = azurerm_kubernetes_cluster.bdcc.kube_config_raw
 }
