@@ -24,7 +24,7 @@ public class MainApplicationTest {
      *
      * You can provide your own directory via env variable TESTING_DIRECTORY.
      */
-    static String temporaryTestDirectory = Optional.ofNullable(System.getenv("TESTING_DIRECTORY")).orElse("/tmp/m06sparkbasics");
+    static String temporaryTestDirectory = Optional.ofNullable(System.getenv("TESTING_DIRECTORY")).orElse("/tmp/m06sparkbasics-tests");
 
     /**
      * Bean for creation of one single testing row of weather data.
@@ -121,13 +121,13 @@ public class MainApplicationTest {
 
     @BeforeAll
     public static void beforeAll() throws Exception {
-        // 1. prepare a temporary directory and a dummy GCP key
+        // 1. prepare a temporary directory and a path to a dummy GCP key (this file doesn't need to exist in the test)
         Files.createDirectories(Paths.get(temporaryTestDirectory));
         Utils.config.put("HOMEWORK_DATA_DIR", temporaryTestDirectory);
         Utils.config.put("GOOGLE_APPLICATION_CREDENTIALS", temporaryTestDirectory + "/dummy.gcp.key");
 
         // 2. create really simple CSV and parquet files that will be used in MainApplication
-        // 2.1 save one record of a hotel to a gzipped csv file
+        // 2.1 save one record of a hotel to a csv file
         String hotelFileContents = "Id,Name,Country,City,Address,Latitude,Longitude\r\n" +
                 "4,Holiday Inn,US,Warsaw,1 Main Street 00-000,12.34,56.78";
         Files.write(Paths.get(temporaryTestDirectory + "/hotels"), hotelFileContents.getBytes());
@@ -155,10 +155,13 @@ public class MainApplicationTest {
 
     @Test
     public void testApp() {
-        // Act
+        /* Arrange */
+        // Done in the `beforeAll` method
+
+        /* Act */
         MainApplication.main(new String[0]);
 
-        // Assert
+        /* Assert */
         final String resultPath = temporaryTestDirectory + "/joined";
         File joined = new File(resultPath);
         Assertions.assertTrue(joined.exists(), "There should be a `joined` directory created");
