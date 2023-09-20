@@ -108,4 +108,14 @@ We can see that there is a log entry with a text
 
 So it indicates job well done!
 
+* How is resulting data? We can check our google bucket.
+* List of files. There should be one single file in the `joined` directory (besides that `_SUCCESS` file):
+
+![](docs/google_bucket_list.png)
+
+And when we click on that big file, details of it are shown:
+
+![](docs/google_bucket_result.png)
+
+
 * After everything is done, clean up by running `terraform destroy`.
