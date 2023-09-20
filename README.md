@@ -1,5 +1,8 @@
 # Spark Basics - Homework application 
 
+## Google Cloud Provider configuration
+You need to save your Service Account keyfile into a folder named `service_account_key`. It should be a JSON file.
+
 ## How to run tests
 This is the quickest way to run and test the application. Just open `MainApplicationTest.java` file and run it as a unit test.
 
@@ -26,18 +29,18 @@ _note: Instructions for Windows 10_
   
 ![](./docs/spark_basics(3).png)
 
-* If you want to run the tests, feel free to do it - you need to add `OPENCAGE_API_KEY` parameter - however it is not necessary to do so.
+* If you want to run the tests, feel free to do it - you need to add `OPENCAGE_API_KEY` environment variable - however it is not necessary to do so.
 * Next, prepare a docker image: `docker build -t jp/sparkbasics .`
 
 ![](./docs/spark_basics(4).png)
 
 * Lastly, run a docker container. Following command won't use OpenCage API and use local data.
 ```
-docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -v "C:/temp/m06sparkbasics:/homework" -e SPARK_EXECUTOR_MEMORY=16G --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
+docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -v "C:/temp/m06sparkbasics:/homework" --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
 ``` 
-* You can use data that are stored in Google Cloud buckets. You must then provide GOOGLE_APPLICATION_CREDENTIALS with a path to your keyfile and create a docker volume to make sure that file is visible in the container. Use a following template:
+* You can use data that are stored in Google Cloud buckets. Use a following template:
 ```
-docker run --rm -p 4040:4040 -v "/path/to/a/key/jporebski-proj-545794d0e7d8.json:/opt/jporebski-proj.json" -e HOMEWORK_DATA_DIR=gs://jakub-porebski-bucket/m06/ -e GOOGLE_APPLICATION_CREDENTIALS=/opt/jporebski-proj.json -e SPARK_EXECUTOR_MEMORY=16G --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
+docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=gs://jakub-porebski-bucket/m06/ --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
 ```
 * If you want to get preview what Spark is actually doing at the moment, go to `http://localhost:4040`. You should see something like this:
 
@@ -49,7 +52,7 @@ And in console it should look like this:
 
 * Following command will use OpenCage API. Replace `PROVIDE_YOURS` below with your OpenCage API Key.
 ```
-docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -e LATLON_CORRECTOR=OpenCageLatLonCorrector -e OPENCAGE_API_KEY=PROVIDE_YOURS -v "C:/temp/m06sparkbasics:/homework" -e SPARK_EXECUTOR_MEMORY=16G --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
+docker run --rm -p 4040:4040 -e HOMEWORK_DATA_DIR=/homework -e LATLON_CORRECTOR=OpenCageLatLonCorrector -e OPENCAGE_API_KEY=PROVIDE_YOURS -v "C:/temp/m06sparkbasics:/homework" --name sb jp/sparkbasics spark-submit --executor-memory 12G --driver-memory 4G --class jporebski.data.sparkbasics.MainApplication /opt/sparkbasics-1.0.0.jar
 ```
 * After computing will be done, console window should look like this:
   ![](./docs/spark_basics(7).png)
@@ -81,14 +84,28 @@ terraform apply terraform.plan
 ![](docs/apply_results.png)
 
 * Tag and push docker image.
-* Launch Spark app in cluster mode on Kubernetes Cluster
 ```
-spark-submit \
-    --master k8s://https://<k8s-apiserver-host>:<k8s-apiserver-port> \
-    --deploy-mode cluster \
-    --name sparkbasics \
-    --conf spark.kubernetes.container.image=<spark-image> \
-    ...
+docker tag jp/sparkbasics europe-central2-docker.pkg.dev/jporebski-proj/jporebski-repo/sparkbasics:v2
 ```
+``` 
+docker push europe-central2-docker.pkg.dev/jporebski-proj/jporebski-repo/sparkbasics:v2
+```
+
+* Launch Spark app in cluster mode on Kubernetes Cluster:
+```
+spark-submit --master k8s://https://34.118.75.224:443 --deploy-mode cluster --name sparkbasics --conf spark.kubernetes.container.image=europe-central2-docker.pkg.dev/jporebski-proj/jporebski-repo/sparkbasics:v2 --conf spark.kubernetes.file.upload.path=/temp --conf spark.kubernetes.driverEnv.HOMEWORK_DATA_DIR=gs://jakub-porebski-bucket/m06/ --conf spark.kubernetes.driverEnv.LATLON_CORRECTOR=OpenCageLatLonCorrector --conf spark.kubernetes.driverEnv.OPENCAGE_API_KEY=91bceb2e672e4712818c4d327d454b1f --class jporebski.data.sparkbasics.MainApplication local:///opt/sparkbasics-1.0.0.jar 
+```
+* Results should look like this:
+
+![](docs/spark_submit_result.png)
+
+* Let's take a look at the logs in GCP/Kubernetes dashboard:
+
+![](docs/k8s_gcp_logs.png)
+
+We can see that there is a log entry with a text 
+> sparkbasics.MainApplication: All done!
+
+So it indicates job well done!
 
 * After everything is done, clean up by running `terraform destroy`.

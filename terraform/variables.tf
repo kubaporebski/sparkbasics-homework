@@ -13,7 +13,7 @@ variable "location" {
 variable "region" {
   description = "Region for deployment"
   type = string
-  default = "europe-central2"
+  default = "europe-central2-a"
 }
 
 variable "zone" {

@@ -48,5 +48,8 @@ COPY ./target/sparkbasics-*.jar /opt/
 RUN dos2unix /opt/entrypoint.sh
 RUN chmod +x /opt/*.sh
 
+COPY ./service_account_key/*.json /etc/service_account_key.json
+ENV GOOGLE_APPLICATION_CREDENTIALS  /etc/service_account_key.json
+
 WORKDIR $SPARK_HOME/work-dir
 ENTRYPOINT [ "/opt/entrypoint.sh" ]
